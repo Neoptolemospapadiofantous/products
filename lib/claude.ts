@@ -3,7 +3,7 @@ import type { Product } from './types';
 
 const client = new Anthropic();
 
-const MODEL = 'claude-opus-4-5';
+const MODEL = 'claude-opus-4-7' as const;
 
 function slugify(s: string): string {
   return s
