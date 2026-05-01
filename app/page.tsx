@@ -28,8 +28,11 @@ export default async function Home() {
           <h1 className="text-4xl font-bold tracking-tight">Daily Winners</h1>
           <p className="mt-3 max-w-xl text-lg text-neutral-600">
             AI-driven pipeline: discover trending products, generate landing pages, SEO, social
-            posts, paid ads, and video scripts — automatically.
+            posts, paid ads, video scripts, and publish to social platforms — automatically.
           </p>
+          <Link href="/setup" className="mt-2 inline-block text-sm text-blue-600 hover:underline">
+            View API keys / setup →
+          </Link>
         </div>
         <RunPipelineButton />
       </header>

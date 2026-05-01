@@ -5,7 +5,8 @@ export type StageName =
   | 'seo'
   | 'social'
   | 'ads'
-  | 'video';
+  | 'video'
+  | 'publish';
 
 export const STAGE_ORDER: StageName[] = [
   'discover',
@@ -15,6 +16,7 @@ export const STAGE_ORDER: StageName[] = [
   'social',
   'ads',
   'video',
+  'publish',
 ];
 
 export const STAGE_LABELS: Record<StageName, string> = {
@@ -25,6 +27,7 @@ export const STAGE_LABELS: Record<StageName, string> = {
   social: 'Social Posts',
   ads: 'Paid Ads',
   video: 'Video Script',
+  publish: 'Publish',
 };
 
 export type StageStatus = 'pending' | 'running' | 'done' | 'error';
@@ -84,6 +87,18 @@ export type VideoOutput = {
   duration: string;
 };
 
+export type PublishOutput = {
+  results: {
+    ok: boolean;
+    platform: string;
+    capability: 'social' | 'ad' | 'video';
+    url?: string;
+    id?: string;
+    error?: string;
+    skipped?: boolean;
+  }[];
+};
+
 export type StageOutputMap = {
   discover: DiscoveryOutput;
   research: ResearchOutput;
@@ -92,6 +107,7 @@ export type StageOutputMap = {
   social: SocialOutput;
   ads: AdsOutput;
   video: VideoOutput;
+  publish: PublishOutput;
 };
 
 export type StageRecord<K extends StageName = StageName> = {

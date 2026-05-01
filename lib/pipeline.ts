@@ -8,6 +8,8 @@ import {
   runVideo,
   slugify,
 } from './claude';
+import { integrations } from './integrations';
+import type { PublishResult } from './integrations';
 import {
   emptyStages,
   getProduct,
@@ -17,7 +19,15 @@ import {
   setStageOutput,
   updateStage,
 } from './storage';
-import type { LandingOutput, Product, ResearchOutput, StageName } from './types';
+import type {
+  AdsOutput,
+  LandingOutput,
+  Product,
+  ResearchOutput,
+  SocialOutput,
+  StageName,
+  VideoOutput,
+} from './types';
 
 export async function startPipeline(seed?: {
   name: string;
@@ -73,6 +83,30 @@ export async function runStage(slug: string, stage: StageName): Promise<void> {
       case 'video':
         await setStageOutput(slug, 'video', await runVideo(name, category, landing));
         break;
+      case 'publish': {
+        const social = product.stages.social?.output as SocialOutput | undefined;
+        const ads = product.stages.ads?.output as AdsOutput | undefined;
+        const video = product.stages.video?.output as VideoOutput | undefined;
+        const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? '';
+        const landingUrl = base ? `${base}/p/${slug}` : undefined;
+        const ctx = { productName: name, category, social, ads, video, landingUrl };
+        const allResults: PublishResult[] = [];
+        for (const integration of integrations) {
+          try {
+            const results = await integration.publish(ctx);
+            allResults.push(...results);
+          } catch (err) {
+            allResults.push({
+              ok: false,
+              platform: integration.id,
+              capability: integration.capabilities[0] ?? 'social',
+              error: err instanceof Error ? err.message : 'unknown error',
+            });
+          }
+        }
+        await setStageOutput(slug, 'publish', { results: allResults });
+        break;
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown error';
@@ -83,7 +117,7 @@ export async function runStage(slug: string, stage: StageName): Promise<void> {
 
 export async function runFullPipeline(slug: string): Promise<void> {
   // discover already populated by startPipeline; run the rest in dependency order
-  const order: StageName[] = ['research', 'landing', 'seo', 'social', 'ads', 'video'];
+  const order: StageName[] = ['research', 'landing', 'seo', 'social', 'ads', 'video', 'publish'];
   for (const stage of order) {
     try {
       await runStage(slug, stage);

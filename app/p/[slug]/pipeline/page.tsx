@@ -6,6 +6,7 @@ import type {
   AdsOutput,
   DiscoveryOutput,
   LandingOutput,
+  PublishOutput,
   ResearchOutput,
   SeoOutput,
   SocialOutput,
@@ -19,6 +20,7 @@ import { SeoStage } from '@/components/stages/SeoStage';
 import { SocialStage } from '@/components/stages/SocialStage';
 import { AdsStage } from '@/components/stages/AdsStage';
 import { VideoStage } from '@/components/stages/VideoStage';
+import { PublishStage } from '@/components/stages/PublishStage';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +83,9 @@ export default async function PipelinePage({ params }: { params: { slug: string 
               break;
             case 'video':
               body = <VideoStage output={record?.output as VideoOutput | undefined} />;
+              break;
+            case 'publish':
+              body = <PublishStage output={record?.output as PublishOutput | undefined} />;
               break;
           }
           return (
