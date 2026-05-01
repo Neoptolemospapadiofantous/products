@@ -35,11 +35,13 @@ export async function updateStage<K extends StageName>(
   const product = await getProduct(slug);
   if (!product) return null;
   const prev = product.stages[stage] ?? { status: 'pending', updatedAt: new Date().toISOString() };
-  product.stages[stage] = {
+  const next = {
     ...prev,
     ...patch,
     updatedAt: new Date().toISOString(),
   } as StageRecord<K>;
+  // Cast through unknown — TS can't see that K → stages[K] is StageRecord<K>
+  (product.stages as Record<StageName, StageRecord<StageName>>)[stage] = next as StageRecord<StageName>;
   await saveProduct(product);
   return product;
 }
