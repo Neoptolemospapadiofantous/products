@@ -3,7 +3,7 @@ import type { Product } from './types';
 
 const client = new Anthropic();
 
-const MODEL = 'claude-opus-4-7';
+const MODEL = 'claude-opus-4-7' as const;
 
 function slugify(s: string): string {
   return s
@@ -11,6 +11,15 @@ function slugify(s: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
     .slice(0, 60);
+}
+
+function extractJson<T>(text: string): T {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenced ? fenced[1] : text;
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('no JSON object in response');
+  return JSON.parse(candidate.slice(start, end + 1)) as T;
 }
 
 export async function discoverTrendingProduct(
@@ -24,38 +33,24 @@ export async function discoverTrendingProduct(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
-    output_config: {
-      format: {
-        type: 'json_schema',
-        schema: {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            category: { type: 'string' },
-            whyTrending: { type: 'string' },
-          },
-          required: ['name', 'category', 'whyTrending'],
-          additionalProperties: false,
-        },
-      },
-    },
     messages: [
       {
         role: 'user',
         content: `Identify ONE specific consumer product with strong dropshipping/e-commerce potential right now. It should be:
 - A real, specific product (not a category) that's trending or has rising demand
 - Solves a clear problem or fills an aspirational need
-- Has a price point under $100 (ideal for impulse buys)
+- Has a price point under $100
 - Has visual appeal (good for social ads)
 
-Return JSON with the product name, category, and a 1-2 sentence reason it's trending.${exclude}`,
+Respond with ONLY a JSON object, no prose, no markdown fences:
+{"name": "...", "category": "...", "whyTrending": "1-2 sentence reason"}${exclude}`,
       },
     ],
   });
 
   const block = response.content.find((b) => b.type === 'text');
   if (!block || block.type !== 'text') throw new Error('no text block');
-  return JSON.parse(block.text);
+  return extractJson(block.text);
 }
 
 export async function generateLandingPage(
@@ -66,114 +61,6 @@ export async function generateLandingPage(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 8000,
-    output_config: {
-      format: {
-        type: 'json_schema',
-        schema: {
-          type: 'object',
-          properties: {
-            tagline: { type: 'string' },
-            targetAudience: { type: 'string' },
-            priceRange: { type: 'string' },
-            hero: {
-              type: 'object',
-              properties: {
-                headline: { type: 'string' },
-                subheadline: { type: 'string' },
-                cta: { type: 'string' },
-              },
-              required: ['headline', 'subheadline', 'cta'],
-              additionalProperties: false,
-            },
-            benefits: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  title: { type: 'string' },
-                  body: { type: 'string' },
-                },
-                required: ['title', 'body'],
-                additionalProperties: false,
-              },
-            },
-            features: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  title: { type: 'string' },
-                  body: { type: 'string' },
-                },
-                required: ['title', 'body'],
-                additionalProperties: false,
-              },
-            },
-            faq: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  q: { type: 'string' },
-                  a: { type: 'string' },
-                },
-                required: ['q', 'a'],
-                additionalProperties: false,
-              },
-            },
-            seo: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                description: { type: 'string' },
-                keywords: { type: 'array', items: { type: 'string' } },
-              },
-              required: ['title', 'description', 'keywords'],
-              additionalProperties: false,
-            },
-            social: {
-              type: 'object',
-              properties: {
-                tweet: { type: 'string' },
-                instagramCaption: { type: 'string' },
-                tiktokScript: { type: 'string' },
-              },
-              required: ['tweet', 'instagramCaption', 'tiktokScript'],
-              additionalProperties: false,
-            },
-            ad: {
-              type: 'object',
-              properties: {
-                facebookHeadline: { type: 'string' },
-                facebookPrimary: { type: 'string' },
-                googleHeadline: { type: 'string' },
-                googleDescription: { type: 'string' },
-              },
-              required: [
-                'facebookHeadline',
-                'facebookPrimary',
-                'googleHeadline',
-                'googleDescription',
-              ],
-              additionalProperties: false,
-            },
-          },
-          required: [
-            'tagline',
-            'targetAudience',
-            'priceRange',
-            'hero',
-            'benefits',
-            'features',
-            'faq',
-            'seo',
-            'social',
-            'ad',
-          ],
-          additionalProperties: false,
-        },
-      },
-    },
     messages: [
       {
         role: 'user',
@@ -183,17 +70,20 @@ Product: ${name}
 Category: ${category}
 Why trending: ${whyTrending}
 
-Generate:
-- A punchy tagline (under 10 words)
-- Target audience (one sentence)
-- Price range (e.g. "$29-49")
-- Hero headline, subheadline, and CTA button copy
-- 4 customer benefits (title + 1-2 sentence body)
-- 4 product features (title + 1-2 sentence body)
-- 5 FAQ entries (real questions a buyer would ask)
-- SEO: title (under 60 chars), meta description (under 160 chars), 8 keywords
-- Social posts: tweet (under 280 chars), Instagram caption with hashtags, TikTok script (3 short lines)
-- Ads: Facebook headline + primary text, Google Ads headline (30 char) + description (90 char)
+Respond with ONLY a JSON object, no prose, no markdown fences, with this exact shape:
+
+{
+  "tagline": "punchy tagline under 10 words",
+  "targetAudience": "one sentence",
+  "priceRange": "e.g. $29-49",
+  "hero": {"headline": "...", "subheadline": "...", "cta": "..."},
+  "benefits": [{"title": "...", "body": "1-2 sentences"}, ...4 items],
+  "features": [{"title": "...", "body": "1-2 sentences"}, ...4 items],
+  "faq": [{"q": "...", "a": "..."}, ...5 items],
+  "seo": {"title": "under 60 chars", "description": "under 160 chars", "keywords": ["..."]},
+  "social": {"tweet": "under 280 chars", "instagramCaption": "with hashtags", "tiktokScript": "3 short lines"},
+  "ad": {"facebookHeadline": "...", "facebookPrimary": "...", "googleHeadline": "30 chars", "googleDescription": "90 chars"}
+}
 
 Be specific, benefit-focused, and conversion-oriented. No fluff, no generic AI-speak.`,
       },
@@ -202,7 +92,7 @@ Be specific, benefit-focused, and conversion-oriented. No fluff, no generic AI-s
 
   const block = response.content.find((b) => b.type === 'text');
   if (!block || block.type !== 'text') throw new Error('no text block');
-  const data = JSON.parse(block.text);
+  const data = extractJson<Omit<Product, 'slug' | 'name' | 'category' | 'whyTrending' | 'createdAt'>>(block.text);
 
   return {
     slug: slugify(name),
